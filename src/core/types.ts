@@ -49,14 +49,6 @@ export interface GeneratedFile {
   content: string;
 }
 
-export interface TestScenario {
-  name: string;
-  description: string;
-  steps: string[];
-  expectedResult: string;
-  type: 'positive' | 'negative' | 'boundary' | 'edge';
-}
-
 export interface GenConfig {
   provider: {
     type: 'openai' | 'anthropic' | 'custom';

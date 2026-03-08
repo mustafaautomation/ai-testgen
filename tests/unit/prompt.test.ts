@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractCodeBlocks, extractFirstCodeBlock, buildPrompt } from '../../src/utils/prompt';
+import { extractCodeBlocks, extractFirstCodeBlock } from '../../src/utils/prompt';
 
 describe('extractCodeBlocks', () => {
   it('should extract code blocks from markdown', () => {
@@ -34,13 +34,5 @@ describe('extractFirstCodeBlock', () => {
 
   it('should return trimmed text if no blocks', () => {
     expect(extractFirstCodeBlock('  hello  ')).toBe('hello');
-  });
-});
-
-describe('buildPrompt', () => {
-  it('should return trimmed system and user prompts', () => {
-    const { system, user } = buildPrompt('  system prompt  ', '  user prompt  ');
-    expect(system).toBe('system prompt');
-    expect(user).toBe('user prompt');
   });
 });

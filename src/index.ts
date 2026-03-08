@@ -16,7 +16,6 @@ export {
   ParsedEndpoint,
   GeneratedOutput,
   GeneratedFile,
-  TestScenario,
   GenConfig,
   DEFAULT_CONFIG,
 } from './core/types';
@@ -47,4 +46,4 @@ export { MarkdownOutput } from './outputs/markdown.output';
 
 // Utils
 export { logger, setLogLevel, getLogLevel } from './utils/logger';
-export { extractCodeBlocks, extractFirstCodeBlock, buildPrompt } from './utils/prompt';
+export { extractCodeBlocks, extractFirstCodeBlock } from './utils/prompt';

@@ -30,12 +30,12 @@ export class Generator {
     this.provider = this.initProvider();
   }
 
-  async generate(filePath: string, format?: OutputFormat): Promise<GeneratedOutput> {
+  async generate(filePath: string, format?: OutputFormat, outputDir?: string): Promise<GeneratedOutput> {
     const content = fs.readFileSync(filePath, 'utf-8');
-    return this.generateFromContent(content, format);
+    return this.generateFromContent(content, format, outputDir);
   }
 
-  async generateFromContent(content: string, format?: OutputFormat): Promise<GeneratedOutput> {
+  async generateFromContent(content: string, format?: OutputFormat, outputDir?: string): Promise<GeneratedOutput> {
     const input = this.detectAndParse(content);
     const outputFormat = format || this.config.output.format;
     const template = this.getTemplate(outputFormat);
@@ -60,6 +60,11 @@ export class Generator {
       .replace(/[^a-z0-9]+/g, '-')
       .substring(0, 40);
     const file = output.createFile(slug, generatedCode);
+
+    const dir = outputDir || this.config.output.dir;
+    if (dir) {
+      output.write([file], dir);
+    }
 
     return {
       format: outputFormat,

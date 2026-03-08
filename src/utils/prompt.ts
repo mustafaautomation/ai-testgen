@@ -18,10 +18,3 @@ export function extractFirstCodeBlock(text: string): string {
   const blocks = extractCodeBlocks(text);
   return blocks[0] || text.trim();
 }
-
-export function buildPrompt(
-  systemPrompt: string,
-  userPrompt: string,
-): { system: string; user: string } {
-  return { system: systemPrompt.trim(), user: userPrompt.trim() };
-}

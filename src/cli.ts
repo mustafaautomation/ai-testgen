@@ -8,9 +8,6 @@ import { Generator } from './core/generator';
 import { validateTypeScript, validateGherkin, validateMarkdown } from './core/validator';
 import { setLogLevel } from './utils/logger';
 import { OutputFormat } from './core/types';
-import { PlaywrightOutput } from './outputs/playwright.output';
-import { GherkinOutput } from './outputs/gherkin.output';
-import { MarkdownOutput } from './outputs/markdown.output';
 
 dotenv.config();
 
@@ -43,10 +40,7 @@ program
     if (options.boundary === false) config.options.includeBoundary = false;
 
     const generator = new Generator(config);
-    const result = await generator.generate(file, options.format as OutputFormat);
-
-    const output = getOutput(result.format);
-    output.write(result.files, config.output.dir);
+    const result = await generator.generate(file, options.format as OutputFormat, config.output.dir);
 
     console.log(`\nGenerated ${result.summary.totalTests} tests in ${result.files.length} file(s)`);
     console.log(`Format: ${result.format}`);
@@ -68,10 +62,7 @@ program
     config.output.dir = options.output;
 
     const generator = new Generator(config);
-    const result = await generator.generate(file, 'api');
-
-    const output = getOutput('api');
-    output.write(result.files, config.output.dir);
+    const result = await generator.generate(file, 'api', config.output.dir);
 
     console.log(`\nGenerated ${result.summary.totalTests} API tests from spec`);
   });
@@ -91,10 +82,7 @@ program
     config.output.dir = options.output;
 
     const generator = new Generator(config);
-    const result = await generator.generate(file, 'markdown');
-
-    const output = getOutput('markdown');
-    output.write(result.files, config.output.dir);
+    const result = await generator.generate(file, 'markdown', config.output.dir);
 
     console.log(`\nGenerated test plan with ${result.summary.totalScenarios} scenarios`);
   });
@@ -144,18 +132,6 @@ program
     console.log('Done! Edit ai-testgen.config.json, set your API key, and run:');
     console.log('  npx ai-testgen generate <input-file>');
   });
-
-function getOutput(format: OutputFormat) {
-  switch (format) {
-    case 'playwright':
-    case 'api':
-      return new PlaywrightOutput();
-    case 'gherkin':
-      return new GherkinOutput();
-    case 'markdown':
-      return new MarkdownOutput();
-  }
-}
 
 function detectFormat(filePath: string): string {
   if (filePath.endsWith('.spec.ts') || filePath.endsWith('.test.ts')) return 'playwright';

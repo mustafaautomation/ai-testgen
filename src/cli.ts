@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import * as fs from 'fs';
+import * as path from 'path';
 import dotenv from 'dotenv';
 import { loadConfig, writeDefaultConfig } from './core/config';
 import { Generator } from './core/generator';
@@ -11,12 +12,23 @@ import { OutputFormat } from './core/types';
 
 dotenv.config();
 
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
+
+const VALID_FORMATS = ['playwright', 'api', 'gherkin', 'markdown'] as const;
+
+function validateFormat(format: string): asserts format is OutputFormat {
+  if (!VALID_FORMATS.includes(format as any)) {
+    console.error(`Unknown format '${format}'. Supported: ${VALID_FORMATS.join(', ')}`);
+    process.exit(1);
+  }
+}
+
 const program = new Command();
 
 program
   .name('ai-testgen')
   .description('AI-powered test case generator from PRDs, OpenAPI specs, and user stories')
-  .version('1.0.0');
+  .version(pkg.version);
 
 program
   .command('generate')
@@ -31,6 +43,7 @@ program
   .option('-v, --verbose', 'Enable verbose logging')
   .action(async (file: string, options) => {
     if (options.verbose) setLogLevel('debug');
+    validateFormat(options.format);
 
     const config = loadConfig(options.config);
     config.output.format = options.format as OutputFormat;
@@ -127,8 +140,14 @@ program
 program
   .command('init')
   .description('Initialize ai-testgen configuration')
-  .action(() => {
-    writeDefaultConfig('ai-testgen.config.json');
+  .option('--force', 'Overwrite existing config')
+  .action((options) => {
+    const configPath = 'ai-testgen.config.json';
+    if (fs.existsSync(configPath) && !options.force) {
+      console.error(`Config already exists: ${configPath}. Use --force to overwrite.`);
+      process.exit(1);
+    }
+    writeDefaultConfig(configPath);
     console.log('Done! Edit ai-testgen.config.json, set your API key, and run:');
     console.log('  npx ai-testgen generate <input-file>');
   });
@@ -140,4 +159,16 @@ function detectFormat(filePath: string): string {
   return 'playwright';
 }
 
-program.parse();
+program.parseAsync().catch((err: Error) => {
+  if (err.message.includes('API key')) {
+    console.error(`\nConfiguration error: ${err.message}`);
+    process.exit(1);
+  } else if (err.message.includes('ENOENT')) {
+    const match = err.message.match(/ENOENT.*?'(.+?)'/);
+    console.error(`\nFile not found: ${match?.[1] || 'unknown file'}`);
+    process.exit(1);
+  } else {
+    console.error(`\nError: ${err.message}`);
+    process.exit(2);
+  }
+});

@@ -89,10 +89,15 @@ program
     }
 
     const useStream = options.stream !== false && !!process.stderr.isTTY;
-    const result = await generator.generate(file, options.format as OutputFormat, config.output.dir, {
-      stream: useStream,
-      progress,
-    });
+    const result = await generator.generate(
+      file,
+      options.format as OutputFormat,
+      config.output.dir,
+      {
+        stream: useStream,
+        progress,
+      },
+    );
 
     progress.done(`Generated ${result.summary.totalTests} tests in ${result.files.length} file(s)`);
     console.log(`Format: ${result.format}`);
@@ -214,7 +219,9 @@ function detectFormat(filePath: string): string {
   return 'playwright';
 }
 
-program.addHelpText('after', `
+program.addHelpText(
+  'after',
+  `
 Examples:
   $ ai-testgen generate requirements.md --format playwright
   $ ai-testgen generate api-spec.yaml --format api --model gpt-4o
@@ -222,7 +229,8 @@ Examples:
   $ ai-testgen generate spec.yaml --dry-run
   $ ai-testgen validate generated-tests/login.spec.ts
   $ ai-testgen init
-`);
+`,
+);
 
 program.parseAsync().catch((err: Error) => {
   if (err.message.includes('API key')) {

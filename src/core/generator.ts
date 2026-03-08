@@ -12,7 +12,7 @@ import { BaseOutput } from '../outputs/base.output';
 import { PlaywrightOutput } from '../outputs/playwright.output';
 import { GherkinOutput } from '../outputs/gherkin.output';
 import { MarkdownOutput } from '../outputs/markdown.output';
-import { LLMProvider, StreamOptions } from '../providers/base.provider';
+import { LLMProvider } from '../providers/base.provider';
 import { OpenAIProvider } from '../providers/openai.provider';
 import { AnthropicProvider } from '../providers/anthropic.provider';
 import { CustomProvider } from '../providers/custom.provider';
@@ -219,7 +219,10 @@ export class Generator {
           }),
           parseResponse: (data: any) => ({
             text: data?.choices?.[0]?.message?.content || data?.content?.[0]?.text || '',
-            tokens: { input: data?.usage?.prompt_tokens || 0, output: data?.usage?.completion_tokens || 0 },
+            tokens: {
+              input: data?.usage?.prompt_tokens || 0,
+              output: data?.usage?.completion_tokens || 0,
+            },
           }),
         });
       case 'openai':

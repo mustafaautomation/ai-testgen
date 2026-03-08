@@ -28,13 +28,16 @@ describe.skipIf(!hasApiKey)('OpenAI Integration', () => {
   it('should generate Playwright tests from a PRD', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-testgen-int-'));
     const inputFile = path.join(tmpDir, 'login.md');
-    fs.writeFileSync(inputFile, `# Login Feature
+    fs.writeFileSync(
+      inputFile,
+      `# Login Feature
 
 ## Requirements
 - Users can log in with email and password
 - Invalid credentials show an error message
 - Successful login redirects to dashboard
-`);
+`,
+    );
 
     const generator = new Generator(config);
     const result = await generator.generate(inputFile, 'playwright', tmpDir);
@@ -49,7 +52,9 @@ describe.skipIf(!hasApiKey)('OpenAI Integration', () => {
   it('should generate API tests from OpenAPI spec', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-testgen-int-'));
     const inputFile = path.join(tmpDir, 'api.yaml');
-    fs.writeFileSync(inputFile, `openapi: "3.0.0"
+    fs.writeFileSync(
+      inputFile,
+      `openapi: "3.0.0"
 info:
   title: Pet Store
   version: "1.0.0"
@@ -73,7 +78,8 @@ paths:
       responses:
         '201':
           description: Pet created
-`);
+`,
+    );
 
     const generator = new Generator(config);
     const result = await generator.generate(inputFile, 'api', tmpDir);

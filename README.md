@@ -19,6 +19,9 @@ AI-powered test case generator that transforms PRDs, OpenAPI specs, and user sto
 - [CLI Commands](#cli-commands)
 - [Input Format Detection](#input-format-detection)
 - [Configuration](#configuration)
+- [Caching](#caching)
+- [Streaming](#streaming)
+- [Error Handling](#error-handling)
 - [Programmatic API](#programmatic-api)
 - [Provider Support](#provider-support)
 - [CI/CD Integration](#cicd-integration)
@@ -44,19 +47,12 @@ AI-powered test case generator that transforms PRDs, OpenAPI specs, and user sto
 ```
 $ npm test
 
- ✓ tests/unit/prompt.test.ts (6 tests) 3ms
- ✓ tests/unit/validator.test.ts (7 tests) 2ms
- ✓ tests/unit/config.test.ts (3 tests) 4ms
- ✓ tests/unit/templates.test.ts (5 tests) 2ms
- ✓ tests/unit/parsers.test.ts (15 tests) 22ms
- ✓ tests/unit/generator.test.ts (4 tests) 19ms
-
- Test Files  6 passed (6)
-      Tests  40 passed (40)
-   Duration  484ms
+ Test Files  13 passed (13)
+      Tests  94 passed (94)
+   Duration  1.44s
 ```
 
-> **40 unit tests** covering parsers, templates, validation, config, and generator logic. Tests run in under 500ms.
+> **94 unit tests** covering parsers, templates, validation, config, generator, CLI, providers, retry logic, streaming, and caching.
 
 ---
 
@@ -121,6 +117,11 @@ Options:
   --style <type>        descriptive, concise, bdd (default: descriptive)
   --no-negative         Skip negative test cases
   --no-boundary         Skip boundary test cases
+  --no-stream           Disable streaming output
+  --dry-run             Show parsed input and prompt without calling LLM
+  --model <model>       Override LLM model from command line
+  --no-cache            Bypass response cache
+  --clear-cache         Clear all cached responses
   -v, --verbose         Enable debug logging
 ```
 
@@ -139,6 +140,13 @@ Validate generated test files (TypeScript compilation, Gherkin syntax, Markdown 
 ### `init`
 
 Create default configuration file.
+
+```bash
+npx ai-testgen init [options]
+
+Options:
+  --force               Overwrite existing config
+```
 
 ---
 
@@ -185,6 +193,44 @@ Then create or edit `ai-testgen.config.json`:
 
 ---
 
+## Caching
+
+AI TestGen caches LLM responses to avoid redundant API calls. Cache behavior:
+
+- **Key**: SHA-256 hash of input content + model + format + style + temperature
+- **Location**: `.ai-testgen/cache/` (configurable)
+- **TTL**: 24 hours default (configurable via `cache.ttlSeconds`)
+- **Bypass**: `--no-cache` flag
+- **Clear**: `--clear-cache` flag
+
+Cache config in `ai-testgen.config.json`:
+
+```json
+{
+  "cache": {
+    "dir": ".ai-testgen/cache",
+    "ttlSeconds": 86400,
+    "enabled": true
+  }
+}
+```
+
+---
+
+## Streaming
+
+When running in a TTY (interactive terminal), AI TestGen streams LLM tokens in real-time with a progress spinner. In non-TTY environments (CI pipelines), it falls back to plain log lines. Use `--no-stream` to disable streaming.
+
+---
+
+## Error Handling
+
+- **Retry with exponential backoff**: 3 retries with 1s → 2s → 4s delays on 429/5xx errors
+- **API key validation**: Clear error message if no key is configured
+- **Graceful errors**: File not found, invalid config, and API errors produce clean messages (no stack traces)
+
+---
+
 ## Programmatic API
 
 ```typescript
@@ -220,7 +266,7 @@ console.log(`Generated ${result.summary.totalTests} tests`);
 The included GitHub Actions workflow:
 
 1. Runs lint, format, type check on Node 18 & 20
-2. Executes all 40 unit tests
+2. Executes all 94 unit tests
 3. Builds the package to verify publishability
 
 Add your API keys as repository secrets for generation:
@@ -269,7 +315,7 @@ ai-testgen/
 │   │   └── logger.ts             # Colored structured logging
 │   ├── cli.ts                    # Command-line interface
 │   └── index.ts                  # Public API exports
-├── tests/unit/                   # 40 unit tests
+├── tests/unit/                   # 94 unit tests
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 ├── Dockerfile

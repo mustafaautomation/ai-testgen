@@ -42,43 +42,52 @@ export class AnthropicProvider extends BaseLLMProvider {
       body.system = options.systemPrompt;
     }
 
-    return withRetry(async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
+    return withRetry(
+      async () => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
 
-      const { result, latencyMs } = await this.timedCall(async () => {
-        try {
-          const response = await fetch(`${this.baseUrl}/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': this.apiKey,
-              'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-          });
+        const { result, latencyMs } = await this.timedCall(async () => {
+          try {
+            const response = await fetch(`${this.baseUrl}/messages`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': this.apiKey,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify(body),
+              signal: controller.signal,
+            });
 
-          if (!response.ok) {
-            const error = await response.text();
-            throw new RetryableError(`Anthropic API error (${response.status}): ${error}`, response.status);
+            if (!response.ok) {
+              const error = await response.text();
+              throw new RetryableError(
+                `Anthropic API error (${response.status}): ${error}`,
+                response.status,
+              );
+            }
+            return response.json() as Promise<AnthropicResponse>;
+          } finally {
+            clearTimeout(timer);
           }
-          return response.json() as Promise<AnthropicResponse>;
-        } finally {
-          clearTimeout(timer);
-        }
-      });
+        });
 
-      const textContent = result.content?.find((c) => c.type === 'text');
+        const textContent = result.content?.find((c) => c.type === 'text');
 
-      return {
-        text: textContent?.text || '',
-        model: result.model || model,
-        tokens: { input: result.usage?.input_tokens || 0, output: result.usage?.output_tokens || 0 },
-        latencyMs,
-        raw: result,
-      };
-    }, { maxRetries: 3, baseDelayMs: 1000 });
+        return {
+          text: textContent?.text || '',
+          model: result.model || model,
+          tokens: {
+            input: result.usage?.input_tokens || 0,
+            output: result.usage?.output_tokens || 0,
+          },
+          latencyMs,
+          raw: result,
+        };
+      },
+      { maxRetries: 3, baseDelayMs: 1000 },
+    );
   }
 
   async stream(prompt: string, options?: StreamOptions): Promise<LLMResponse> {
@@ -99,7 +108,7 @@ export class AnthropicProvider extends BaseLLMProvider {
     const timer = setTimeout(() => controller.abort(), timeout);
     const start = performance.now();
     let fullText = '';
-    let tokens = { input: 0, output: 0 };
+    const tokens = { input: 0, output: 0 };
 
     try {
       const response = await fetch(`${this.baseUrl}/messages`, {
@@ -115,14 +124,17 @@ export class AnthropicProvider extends BaseLLMProvider {
 
       if (!response.ok) {
         const error = await response.text();
-        throw new RetryableError(`Anthropic API error (${response.status}): ${error}`, response.status);
+        throw new RetryableError(
+          `Anthropic API error (${response.status}): ${error}`,
+          response.status,
+        );
       }
 
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
+      for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
@@ -143,7 +155,9 @@ export class AnthropicProvider extends BaseLLMProvider {
             if (data.type === 'message_delta' && data.usage) {
               tokens.output = data.usage.output_tokens || 0;
             }
-          } catch { /* skip malformed chunks */ }
+          } catch {
+            /* skip malformed chunks */
+          }
         }
       }
     } finally {

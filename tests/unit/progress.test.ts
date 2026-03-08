@@ -31,7 +31,7 @@ describe('Progress', () => {
     const progress = new Progress();
     progress.start('Working...');
     progress.done('Complete');
-    const allCalls = stderrWrite.mock.calls.map(c => String(c[0])).join('');
+    const allCalls = stderrWrite.mock.calls.map((c) => String(c[0])).join('');
     expect(allCalls).toContain('Complete');
     expect(allCalls).toContain('✓');
   });

@@ -38,37 +38,43 @@ export class CustomProvider extends BaseLLMProvider {
     const timeout = options?.timeout || this.defaultTimeout;
     const body = this.bodyTemplate(prompt, options);
 
-    return withRetry(async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
+    return withRetry(
+      async () => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeout);
 
-      const { result, latencyMs } = await this.timedCall(async () => {
-        try {
-          const response = await fetch(this.endpoint, {
-            method: 'POST',
-            headers: this.headers,
-            body: JSON.stringify(body),
-            signal: controller.signal,
-          });
-          if (!response.ok) {
-            const error = await response.text();
-            throw new RetryableError(`Custom API error (${response.status}): ${error}`, response.status);
+        const { result, latencyMs } = await this.timedCall(async () => {
+          try {
+            const response = await fetch(this.endpoint, {
+              method: 'POST',
+              headers: this.headers,
+              body: JSON.stringify(body),
+              signal: controller.signal,
+            });
+            if (!response.ok) {
+              const error = await response.text();
+              throw new RetryableError(
+                `Custom API error (${response.status}): ${error}`,
+                response.status,
+              );
+            }
+            return response.json();
+          } finally {
+            clearTimeout(timer);
           }
-          return response.json();
-        } finally {
-          clearTimeout(timer);
-        }
-      });
+        });
 
-      const parsed = this.parseResponse(result);
+        const parsed = this.parseResponse(result);
 
-      return {
-        text: parsed.text,
-        model: options?.model || this.defaultModel,
-        tokens: parsed.tokens || { input: 0, output: 0 },
-        latencyMs,
-        raw: result,
-      };
-    }, { maxRetries: 3, baseDelayMs: 1000 });
+        return {
+          text: parsed.text,
+          model: options?.model || this.defaultModel,
+          tokens: parsed.tokens || { input: 0, output: 0 },
+          latencyMs,
+          raw: result,
+        };
+      },
+      { maxRetries: 3, baseDelayMs: 1000 },
+    );
   }
 }

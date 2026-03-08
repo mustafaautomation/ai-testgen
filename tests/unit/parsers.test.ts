@@ -136,12 +136,15 @@ describe('StoryParser - canParse', () => {
 
   it('should match structured "As a" user story', () => {
     const parser = new StoryParser();
-    expect(parser.canParse('As a user, I want to log in, so that I can access my dashboard.')).toBe(true);
+    expect(parser.canParse('As a user, I want to log in, so that I can access my dashboard.')).toBe(
+      true,
+    );
   });
 
   it('should match structured Given/When/Then with Scenario', () => {
     const parser = new StoryParser();
-    const content = 'Scenario: Login\nGiven a user exists\nWhen they enter credentials\nThen they see dashboard';
+    const content =
+      'Scenario: Login\nGiven a user exists\nWhen they enter credentials\nThen they see dashboard';
     expect(parser.canParse(content)).toBe(true);
   });
 });

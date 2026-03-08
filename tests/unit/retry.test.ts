@@ -56,9 +56,7 @@ describe('withRetry', () => {
   it('exhausts retries and throws last error', async () => {
     const fn = vi.fn().mockRejectedValue(new RetryableError('server error', 500));
 
-    await expect(withRetry(fn, { maxRetries: 3, baseDelayMs: 10 })).rejects.toThrow(
-      'server error',
-    );
+    await expect(withRetry(fn, { maxRetries: 3, baseDelayMs: 10 })).rejects.toThrow('server error');
     expect(fn).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
   });
 
@@ -70,19 +68,16 @@ describe('withRetry', () => {
       delays.push(delayMs);
     });
 
-    await expect(
-      withRetry(fn, { maxRetries: 3, baseDelayMs: 100, onRetry }),
-    ).rejects.toThrow('fail');
+    await expect(withRetry(fn, { maxRetries: 3, baseDelayMs: 100, onRetry })).rejects.toThrow(
+      'fail',
+    );
 
     // Exponential: 100 * 2^0 = 100, 100 * 2^1 = 200, 100 * 2^2 = 400
     expect(delays).toEqual([100, 200, 400]);
   });
 
   it('retries non-RetryableError (plain Error from network failure)', async () => {
-    const fn = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('ECONNRESET'))
-      .mockResolvedValue('ok');
+    const fn = vi.fn().mockRejectedValueOnce(new Error('ECONNRESET')).mockResolvedValue('ok');
 
     const result = await withRetry(fn, { baseDelayMs: 10 });
 

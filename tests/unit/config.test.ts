@@ -66,7 +66,10 @@ describe('config', () => {
   it('should handle $-prefixed apiKey by resolving env', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-testgen-cfg-'));
     const configPath = path.join(tmpDir, 'config.json');
-    fs.writeFileSync(configPath, JSON.stringify({ provider: { type: 'openai', apiKey: '$OPENAI_API_KEY' } }));
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({ provider: { type: 'openai', apiKey: '$OPENAI_API_KEY' } }),
+    );
 
     const origEnv = process.env.OPENAI_API_KEY;
     process.env.OPENAI_API_KEY = 'test-openai-key';

@@ -26,7 +26,13 @@ export class Cache {
     }
   }
 
-  static buildKey(content: string, model: string, format: string, style: string, temperature: number): string {
+  static buildKey(
+    content: string,
+    model: string,
+    format: string,
+    style: string,
+    temperature: number,
+  ): string {
     const hash = crypto.createHash('sha256');
     hash.update(`${content}|${model}|${format}|${style}|${temperature}`);
     return hash.digest('hex');

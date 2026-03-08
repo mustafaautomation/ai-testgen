@@ -14,7 +14,13 @@ export class StoryParser {
   }
 
   canParse(content: string): boolean {
-    return /\bAs a\b/i.test(content) || /\bGiven\b/i.test(content);
+    const hasAsA = /\bAs an?\s+.+?,\s*I want\b/i.test(content);
+    const hasStructuredGWT =
+      /\bGiven\b/i.test(content) &&
+      /\bWhen\b/i.test(content) &&
+      /\bThen\b/i.test(content) &&
+      /\bScenario[:\s]/i.test(content);
+    return hasAsA || hasStructuredGWT;
   }
 
   private extractScenarios(content: string): ParsedScenario[] {

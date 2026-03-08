@@ -15,6 +15,7 @@ import { MarkdownOutput } from '../outputs/markdown.output';
 import { LLMProvider } from '../providers/base.provider';
 import { OpenAIProvider } from '../providers/openai.provider';
 import { AnthropicProvider } from '../providers/anthropic.provider';
+import { CustomProvider } from '../providers/custom.provider';
 import { extractFirstCodeBlock } from '../utils/prompt';
 import { logger } from '../utils/logger';
 
@@ -123,6 +124,24 @@ export class Generator {
     switch (type) {
       case 'anthropic':
         return new AnthropicProvider({ apiKey: apiKey || '', baseUrl, defaultModel: model });
+      case 'custom':
+        return new CustomProvider({
+          endpoint: baseUrl || '',
+          defaultModel: model,
+          bodyTemplate: (prompt, opts) => ({
+            model: opts?.model || model || 'default',
+            messages: [
+              ...(opts?.systemPrompt ? [{ role: 'system', content: opts.systemPrompt }] : []),
+              { role: 'user', content: prompt },
+            ],
+            temperature: opts?.temperature ?? 0.2,
+            max_tokens: opts?.maxTokens ?? 4096,
+          }),
+          parseResponse: (data: any) => ({
+            text: data?.choices?.[0]?.message?.content || data?.content?.[0]?.text || '',
+            tokens: { input: data?.usage?.prompt_tokens || 0, output: data?.usage?.completion_tokens || 0 },
+          }),
+        });
       case 'openai':
       default:
         return new OpenAIProvider({ apiKey: apiKey || '', baseUrl, defaultModel: model });

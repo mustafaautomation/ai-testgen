@@ -29,6 +29,7 @@ function readConfigFile(filePath: string): GenConfig {
     provider: { ...DEFAULT_CONFIG.provider, ...user.provider },
     output: { ...DEFAULT_CONFIG.output, ...user.output },
     options: { ...DEFAULT_CONFIG.options, ...user.options },
+    cache: { ...DEFAULT_CONFIG.cache!, ...user.cache },
   });
 }
 

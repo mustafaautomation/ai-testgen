@@ -10,6 +10,7 @@ import { validateTypeScript, validateGherkin, validateMarkdown } from './core/va
 import { setLogLevel } from './utils/logger';
 import { OutputFormat } from './core/types';
 import { Progress } from './utils/progress';
+import { Cache } from './utils/cache';
 
 dotenv.config();
 
@@ -44,6 +45,8 @@ program
   .option('--no-stream', 'Disable streaming output')
   .option('--dry-run', 'Show parsed input and prompt without calling LLM')
   .option('--model <model>', 'Override LLM model')
+  .option('--no-cache', 'Bypass response cache')
+  .option('--clear-cache', 'Clear all cached responses and exit')
   .option('-v, --verbose', 'Enable verbose logging')
   .action(async (file: string, options) => {
     if (options.verbose) setLogLevel('debug');
@@ -56,6 +59,18 @@ program
     if (options.negative === false) config.options.includeNegative = false;
     if (options.boundary === false) config.options.includeBoundary = false;
     if (options.model) config.provider.model = options.model;
+
+    if (options.clearCache) {
+      const cacheDir = config.cache?.dir || '.ai-testgen/cache';
+      const cache = new Cache({ dir: cacheDir, ttlSeconds: 0 });
+      cache.clear();
+      console.log('Cache cleared.');
+      return;
+    }
+
+    if (options.cache === false && config.cache) {
+      config.cache.enabled = false;
+    }
 
     const progress = new Progress();
     progress.start('Parsing input...');

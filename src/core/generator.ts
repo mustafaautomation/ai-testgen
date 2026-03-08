@@ -19,6 +19,7 @@ import { CustomProvider } from '../providers/custom.provider';
 import { extractFirstCodeBlock } from '../utils/prompt';
 import { logger } from '../utils/logger';
 import { Progress } from '../utils/progress';
+import { Cache } from '../utils/cache';
 
 export class Generator {
   private config: GenConfig;
@@ -60,6 +61,51 @@ export class Generator {
 
     const progress = options?.progress;
     progress?.update(`Detected: ${input.type} (${input.scenarios.length} scenarios)`);
+
+    // Check cache before calling LLM
+    const cacheConfig = this.config.cache;
+    let cacheKey: string | null = null;
+    let cache: Cache | null = null;
+
+    if (cacheConfig?.enabled) {
+      cache = new Cache({ dir: cacheConfig.dir, ttlSeconds: cacheConfig.ttlSeconds });
+      cacheKey = Cache.buildKey(
+        content,
+        this.config.provider.model || 'default',
+        outputFormat,
+        this.config.output.style,
+        this.config.options.temperature,
+      );
+
+      const cached = cache.get(cacheKey);
+      if (cached) {
+        const ageStr =
+          cached.age < 3600000
+            ? `${Math.round(cached.age / 60000)}m ago`
+            : `${Math.round(cached.age / 3600000)}h ago`;
+        progress?.done(`Using cached response (${ageStr})`);
+
+        const generatedCode = extractFirstCodeBlock(cached.response);
+        const slug = input.title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .substring(0, 40);
+        const file = output.createFile(slug, generatedCode);
+        const dir = outputDir || this.config.output.dir;
+        if (dir) output.write([file], dir);
+
+        return {
+          format: outputFormat,
+          files: [file],
+          summary: {
+            totalTests: this.countTests(generatedCode, outputFormat),
+            totalScenarios: input.scenarios.length,
+            format: outputFormat,
+          },
+        };
+      }
+    }
+
     progress?.update(`Calling ${this.config.provider.type}...`);
 
     let response;
@@ -83,6 +129,11 @@ export class Generator {
     progress?.start('Writing files...');
 
     logger.info(`LLM response: ${response.tokens.output} tokens, ${response.latencyMs}ms`);
+
+    // Save to cache after successful LLM call
+    if (cache && cacheKey) {
+      cache.set(cacheKey, response.text, { model: response.model, tokens: response.tokens });
+    }
 
     const generatedCode = extractFirstCodeBlock(response.text);
     const slug = input.title

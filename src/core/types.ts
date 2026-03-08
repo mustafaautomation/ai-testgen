@@ -67,6 +67,11 @@ export interface GenConfig {
     maxTokens: number;
     temperature: number;
   };
+  cache?: {
+    dir: string;
+    ttlSeconds: number;
+    enabled: boolean;
+  };
 }
 
 export const DEFAULT_CONFIG: GenConfig = {
@@ -85,5 +90,10 @@ export const DEFAULT_CONFIG: GenConfig = {
     includeBoundary: true,
     maxTokens: 4096,
     temperature: 0.2,
+  },
+  cache: {
+    dir: '.ai-testgen/cache',
+    ttlSeconds: 86400,
+    enabled: true,
   },
 };

@@ -48,4 +48,5 @@ export { MarkdownOutput } from './outputs/markdown.output';
 export { logger, setLogLevel, getLogLevel } from './utils/logger';
 export { extractCodeBlocks, extractFirstCodeBlock } from './utils/prompt';
 export { Progress } from './utils/progress';
+export { Cache } from './utils/cache';
 export { StreamOptions } from './providers/base.provider';

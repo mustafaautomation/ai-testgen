@@ -14,14 +14,23 @@ export interface LLMResponse {
   raw?: unknown;
 }
 
+export interface StreamOptions extends CallOptions {
+  onToken?: (token: string) => void;
+}
+
 export interface LLMProvider {
   name: string;
   call(prompt: string, options?: CallOptions): Promise<LLMResponse>;
+  stream(prompt: string, options?: StreamOptions): Promise<LLMResponse>;
 }
 
 export abstract class BaseLLMProvider implements LLMProvider {
   abstract name: string;
   abstract call(prompt: string, options?: CallOptions): Promise<LLMResponse>;
+
+  async stream(prompt: string, options?: StreamOptions): Promise<LLMResponse> {
+    return this.call(prompt, options);
+  }
 
   protected validateApiKey(apiKey: string): void {
     if (!apiKey || apiKey.startsWith('$')) {

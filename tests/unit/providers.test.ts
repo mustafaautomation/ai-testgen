@@ -262,6 +262,114 @@ describe('OpenAI retry behavior', () => {
   });
 });
 
+describe('OpenAIProvider - streaming', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should yield tokens from SSE stream', async () => {
+    const sseData = [
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":" world"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"!"}}],"usage":{"prompt_tokens":5,"completion_tokens":3}}\n\n',
+      'data: [DONE]\n\n',
+    ].join('');
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseData));
+        controller.close();
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
+
+    const provider = new OpenAIProvider({ apiKey: 'test-key' });
+    const chunks: string[] = [];
+
+    const result = await provider.stream('hello', {
+      onToken: (token) => chunks.push(token),
+    });
+
+    expect(chunks.join('')).toBe('Hello world!');
+    expect(result.text).toBe('Hello world!');
+  });
+
+  it('should handle stream error response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: async () => 'Server error',
+    });
+
+    const provider = new OpenAIProvider({ apiKey: 'test-key' });
+    await expect(provider.stream('hello')).rejects.toThrow('OpenAI API error (500)');
+  });
+});
+
+describe('AnthropicProvider - streaming', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should yield tokens from Anthropic SSE stream', async () => {
+    const sseData = [
+      'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":10}}}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hello"}}\n\n',
+      'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":" world"}}\n\n',
+      'event: message_delta\ndata: {"type":"message_delta","usage":{"output_tokens":5}}\n\n',
+      'event: message_stop\ndata: {"type":"message_stop"}\n\n',
+    ].join('');
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(sseData));
+        controller.close();
+      },
+    });
+
+    mockFetch.mockResolvedValueOnce({ ok: true, body: stream });
+
+    const provider = new AnthropicProvider({ apiKey: 'test-key' });
+    const chunks: string[] = [];
+
+    const result = await provider.stream('hello', {
+      onToken: (token) => chunks.push(token),
+    });
+
+    expect(chunks.join('')).toBe('Hello world');
+    expect(result.text).toBe('Hello world');
+    expect(result.tokens).toEqual({ input: 10, output: 5 });
+  });
+
+  it('should handle stream error response', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: async () => 'Unauthorized',
+    });
+
+    const provider = new AnthropicProvider({ apiKey: 'test-key' });
+    await expect(provider.stream('hello')).rejects.toThrow('Anthropic API error (401)');
+  });
+});
+
 describe('Anthropic API key validation', () => {
   it('should throw on missing Anthropic API key', async () => {
     const provider = new AnthropicProvider({ apiKey: '' });

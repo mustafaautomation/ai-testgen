@@ -1,4 +1,4 @@
-import { BaseLLMProvider, CallOptions, LLMResponse } from './base.provider';
+import { BaseLLMProvider, CallOptions, LLMResponse, StreamOptions } from './base.provider';
 import { withRetry, RetryableError } from '../utils/retry';
 
 interface AnthropicConfig {
@@ -79,5 +79,77 @@ export class AnthropicProvider extends BaseLLMProvider {
         raw: result,
       };
     }, { maxRetries: 3, baseDelayMs: 1000 });
+  }
+
+  async stream(prompt: string, options?: StreamOptions): Promise<LLMResponse> {
+    this.validateApiKey(this.apiKey);
+    const model = options?.model || this.defaultModel;
+    const timeout = options?.timeout || 120000;
+
+    const body: Record<string, unknown> = {
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: options?.maxTokens ?? 4096,
+      temperature: options?.temperature ?? 0.2,
+      stream: true,
+    };
+    if (options?.systemPrompt) body.system = options.systemPrompt;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    const start = performance.now();
+    let fullText = '';
+    let tokens = { input: 0, output: 0 };
+
+    try {
+      const response = await fetch(`${this.baseUrl}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new RetryableError(`Anthropic API error (${response.status}): ${error}`, response.status);
+      }
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'content_block_delta' && data.delta?.text) {
+              fullText += data.delta.text;
+              options?.onToken?.(data.delta.text);
+            }
+            if (data.type === 'message_start' && data.message?.usage) {
+              tokens.input = data.message.usage.input_tokens || 0;
+            }
+            if (data.type === 'message_delta' && data.usage) {
+              tokens.output = data.usage.output_tokens || 0;
+            }
+          } catch { /* skip malformed chunks */ }
+        }
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+
+    return { text: fullText, model, tokens, latencyMs: Math.round(performance.now() - start) };
   }
 }

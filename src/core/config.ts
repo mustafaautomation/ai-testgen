@@ -29,7 +29,13 @@ function readConfigFile(filePath: string): GenConfig {
     provider: { ...DEFAULT_CONFIG.provider, ...user.provider },
     output: { ...DEFAULT_CONFIG.output, ...user.output },
     options: { ...DEFAULT_CONFIG.options, ...user.options },
-    cache: { ...DEFAULT_CONFIG.cache!, ...user.cache },
+    cache: {
+      dir: '.ai-testgen/cache',
+      ttlSeconds: 86400,
+      enabled: true,
+      ...DEFAULT_CONFIG.cache,
+      ...user.cache,
+    },
   });
 }
 
@@ -46,6 +52,7 @@ export function writeDefaultConfig(outputPath: string): void {
     provider: { type: 'openai', apiKey: '$OPENAI_API_KEY', model: 'gpt-4o-mini' },
     output: DEFAULT_CONFIG.output,
     options: DEFAULT_CONFIG.options,
+    cache: { dir: '.ai-testgen/cache', ttlSeconds: 86400, enabled: true },
   };
 
   const dir = path.dirname(outputPath);

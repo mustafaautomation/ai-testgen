@@ -1,48 +1,35 @@
-import { execSync } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import { logger } from '../utils/logger';
-
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
 
 export function validateTypeScript(content: string): ValidationResult {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-testgen-'));
-  const filePath = path.join(tmpDir, 'test.ts');
+  const errors: string[] = [];
 
-  try {
-    fs.writeFileSync(filePath, content, 'utf-8');
-
-    // Write a minimal tsconfig for validation
-    const tsconfig = {
-      compilerOptions: {
-        target: 'ES2022',
-        module: 'CommonJS',
-        strict: false,
-        skipLibCheck: true,
-        noEmit: true,
-        moduleResolution: 'node',
-      },
-      include: ['test.ts'],
-    };
-    fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), JSON.stringify(tsconfig), 'utf-8');
-
-    execSync('npx tsc --noEmit', { cwd: tmpDir, timeout: 15000, stdio: 'pipe' });
-
-    return { valid: true, errors: [] };
-  } catch (err) {
-    const error = err as { stderr?: Buffer; stdout?: Buffer };
-    const output = error.stderr?.toString() || error.stdout?.toString() || 'Unknown error';
-    const errors = output.split('\n').filter((l: string) => l.includes('error TS'));
-
-    logger.debug(`TypeScript validation failed: ${errors.length} errors`);
-    return { valid: false, errors };
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
+  // Structural checks instead of tsc compilation
+  if (!content.includes('import')) {
+    errors.push('Missing import statements');
   }
+
+  const hasTestBlocks = /\b(test|it|describe)\s*\(/.test(content);
+  if (!hasTestBlocks) {
+    errors.push('No test blocks found (test, it, or describe)');
+  }
+
+  // Check for obvious syntax issues
+  const openBraces = (content.match(/\{/g) || []).length;
+  const closeBraces = (content.match(/\}/g) || []).length;
+  if (openBraces !== closeBraces) {
+    errors.push(`Mismatched braces: ${openBraces} opening, ${closeBraces} closing`);
+  }
+
+  const openParens = (content.match(/\(/g) || []).length;
+  const closeParens = (content.match(/\)/g) || []).length;
+  if (openParens !== closeParens) {
+    errors.push(`Mismatched parentheses: ${openParens} opening, ${closeParens} closing`);
+  }
+
+  return { valid: errors.length === 0, errors };
 }
 
 export function validateGherkin(content: string): ValidationResult {

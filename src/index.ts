@@ -1,12 +1,8 @@
 // Core
 export { Generator } from './core/generator';
 export { loadConfig, writeDefaultConfig } from './core/config';
-export {
-  validateTypeScript,
-  validateGherkin,
-  validateMarkdown,
-  ValidationResult,
-} from './core/validator';
+export { validateTypeScript, validateGherkin, validateMarkdown } from './core/validator';
+export type { ValidationResult } from './core/validator';
 export {
   InputType,
   OutputFormat,
@@ -45,7 +41,7 @@ export { GherkinOutput } from './outputs/gherkin.output';
 export { MarkdownOutput } from './outputs/markdown.output';
 
 // Utils
-export { logger, setLogLevel, getLogLevel } from './utils/logger';
+export { logger, setLogLevel, getLogLevel, LogLevel } from './utils/logger';
 export { extractCodeBlocks, extractFirstCodeBlock } from './utils/prompt';
 export { Progress } from './utils/progress';
 export { Cache } from './utils/cache';

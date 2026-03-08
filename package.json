@@ -1,21 +1,23 @@
 {
   "name": "ai-testgen",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "AI-powered test case generator from PRDs, OpenAPI specs, and user stories",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "require": "./dist/index.js"
-    }
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "bin": {
     "ai-testgen": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
-    "test": "vitest run",
+    "test": "vitest run tests/unit/",
     "test:integration": "vitest run tests/integration/",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts",
@@ -65,6 +67,7 @@
     "node": ">=18.0.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "package.json"
   ]
 }

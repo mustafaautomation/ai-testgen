@@ -130,7 +130,10 @@ export class AnthropicProvider extends BaseLLMProvider {
         );
       }
 
-      const reader = response.body!.getReader();
+      if (!response.body) {
+        throw new Error(`${this.name} streaming error: response body is null`);
+      }
+      const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
 

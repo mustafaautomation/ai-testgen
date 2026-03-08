@@ -197,8 +197,8 @@ describe('CustomProvider - clearTimeout on error', () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: false,
-      status: 422,
-      text: async () => 'Unprocessable entity',
+      status: 400,
+      text: async () => 'Bad request',
     });
 
     const provider = new CustomProvider({
@@ -206,7 +206,7 @@ describe('CustomProvider - clearTimeout on error', () => {
       bodyTemplate: (prompt) => ({ prompt }),
       parseResponse: (data: any) => ({ text: data.text }),
     });
-    await expect(provider.call('hello')).rejects.toThrow('Custom API error (422)');
+    await expect(provider.call('hello')).rejects.toThrow('Custom API error (400)');
     expect(clearTimeoutSpy).toHaveBeenCalled();
     clearTimeoutSpy.mockRestore();
   });

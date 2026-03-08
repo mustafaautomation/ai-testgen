@@ -1,6 +1,5 @@
 import { logger } from './logger';
 
-const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 const NON_RETRYABLE_STATUS_CODES = new Set([400, 401, 403, 404]);
 
 export class RetryableError extends Error {
@@ -24,12 +23,11 @@ function isRetryable(error: unknown): boolean {
     if (error.statusCode && NON_RETRYABLE_STATUS_CODES.has(error.statusCode)) {
       return false;
     }
-    if (error.statusCode && RETRYABLE_STATUS_CODES.has(error.statusCode)) {
-      return true;
-    }
+    // RetryableError with retryable status code OR no status code = retry
+    return true;
   }
-  // Network errors (no statusCode / not RetryableError) are retryable
-  return !(error instanceof RetryableError);
+  // Plain errors (network failures) are retryable
+  return true;
 }
 
 function delay(ms: number): Promise<void> {

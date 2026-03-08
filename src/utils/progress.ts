@@ -11,6 +11,7 @@ export class Progress {
   }
 
   start(message: string): void {
+    this.stop(); // Clean up any existing interval
     this.message = message;
     if (this.isTTY) {
       this.interval = setInterval(() => {

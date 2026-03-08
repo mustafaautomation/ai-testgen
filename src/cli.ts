@@ -19,7 +19,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'
 const VALID_FORMATS = ['playwright', 'api', 'gherkin', 'markdown'] as const;
 
 function validateFormat(format: string): asserts format is OutputFormat {
-  if (!VALID_FORMATS.includes(format as any)) {
+  if (!(VALID_FORMATS as readonly string[]).includes(format)) {
     console.error(`Unknown format '${format}'. Supported: ${VALID_FORMATS.join(', ')}`);
     process.exit(1);
   }
@@ -62,8 +62,10 @@ program
 
     if (options.clearCache) {
       const cacheDir = config.cache?.dir || '.ai-testgen/cache';
-      const cache = new Cache({ dir: cacheDir, ttlSeconds: 0 });
-      cache.clear();
+      if (fs.existsSync(cacheDir)) {
+        const cache = new Cache({ dir: cacheDir, ttlSeconds: 0 });
+        cache.clear();
+      }
       console.log('Cache cleared.');
       return;
     }

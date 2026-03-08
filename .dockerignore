@@ -4,4 +4,7 @@ dist
 .env
 generated-tests
 tests
-*.md
+README.md
+CONTRIBUTING.md
+SECURITY.md
+CHANGELOG.md

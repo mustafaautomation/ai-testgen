@@ -21,8 +21,12 @@ export class Cache {
   constructor(config: CacheConfig) {
     this.dir = config.dir;
     this.ttlMs = config.ttlSeconds * 1000;
-    if (!fs.existsSync(this.dir)) {
-      fs.mkdirSync(this.dir, { recursive: true });
+    try {
+      if (!fs.existsSync(this.dir)) {
+        fs.mkdirSync(this.dir, { recursive: true });
+      }
+    } catch {
+      logger.warn(`Cannot create cache directory: ${this.dir}`);
     }
   }
 
@@ -61,10 +65,14 @@ export class Cache {
   }
 
   set(key: string, response: string, metadata: Record<string, unknown>): void {
-    const entry: CacheEntry = { response, createdAt: Date.now(), metadata };
-    const filePath = path.join(this.dir, `${key}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(entry), 'utf-8');
-    logger.debug(`Cache saved: ${key}`);
+    try {
+      const entry: CacheEntry = { response, createdAt: Date.now(), metadata };
+      const filePath = path.join(this.dir, `${key}.json`);
+      fs.writeFileSync(filePath, JSON.stringify(entry), 'utf-8');
+      logger.debug(`Cache saved: ${key}`);
+    } catch {
+      logger.warn(`Failed to write cache entry: ${key}`);
+    }
   }
 
   clear(): void {

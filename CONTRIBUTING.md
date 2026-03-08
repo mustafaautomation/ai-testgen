@@ -1,6 +1,6 @@
 # Contributing to AI TestGen
 
-## Getting Started
+## Development Setup
 
 ```bash
 git clone https://github.com/mustafaautomation/ai-testgen.git
@@ -9,26 +9,20 @@ npm install
 npm test
 ```
 
-## Development
-
-```bash
-npm test              # Run unit tests
-npm run typecheck     # Type checking
-npm run lint          # ESLint
-npm run format:check  # Prettier
-npm run build         # Compile TypeScript
-```
-
 ## Pull Request Process
 
 1. Create a feature branch from `main`
 2. Write tests for new functionality
-3. Ensure all checks pass: `npm run typecheck && npm run lint && npm test`
-4. Submit PR using the provided template
+3. Ensure all tests pass: `npm test`
+4. Ensure code quality: `npm run lint && npm run format:check && npm run typecheck`
+5. Submit a pull request
 
 ## Code Style
 
 - TypeScript strict mode
-- Prettier for formatting
-- ESLint for linting
-- Conventional commit messages
+- ESLint + Prettier enforced
+- Conventional commits
+
+## Reporting Bugs
+
+Open an issue at https://github.com/mustafaautomation/ai-testgen/issues

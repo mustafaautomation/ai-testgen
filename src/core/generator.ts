@@ -217,13 +217,17 @@ export class Generator {
             temperature: opts?.temperature ?? 0.2,
             max_tokens: opts?.maxTokens ?? 4096,
           }),
-          parseResponse: (data: any) => ({
-            text: data?.choices?.[0]?.message?.content || data?.content?.[0]?.text || '',
-            tokens: {
-              input: data?.usage?.prompt_tokens || 0,
-              output: data?.usage?.completion_tokens || 0,
-            },
-          }),
+          parseResponse: (data: unknown) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const d = data as Record<string, any>;
+            return {
+              text: d?.choices?.[0]?.message?.content || d?.content?.[0]?.text || '',
+              tokens: {
+                input: d?.usage?.prompt_tokens || 0,
+                output: d?.usage?.completion_tokens || 0,
+              },
+            };
+          },
         });
       case 'openai':
       default:
@@ -235,8 +239,9 @@ export class Generator {
     switch (format) {
       case 'playwright':
       case 'api': {
-        const matches = code.match(/\btest\s*\(/g) || code.match(/\bit\s*\(/g) || [];
-        return matches.length;
+        const testMatches = code.match(/\btest\s*\(/g) || [];
+        const itMatches = code.match(/\bit\s*\(/g) || [];
+        return testMatches.length + itMatches.length;
       }
       case 'gherkin': {
         const matches = code.match(/\bScenario:/g) || [];

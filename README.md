@@ -256,7 +256,7 @@ console.log(`Generated ${result.summary.totalTests} tests`);
 | Provider | Config Type | Default Model |
 |----------|------------|---------------|
 | OpenAI | `openai` | gpt-4o-mini |
-| Anthropic | `anthropic` | claude-sonnet-4-6 |
+| Anthropic | `anthropic` | claude-sonnet-4-5-20250514 |
 | Custom | `custom` | (configurable) |
 
 ---

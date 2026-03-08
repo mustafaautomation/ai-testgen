@@ -1,0 +1,144 @@
+import * as fs from 'fs';
+import { GenConfig, ParsedInput, GeneratedOutput, OutputFormat } from './types';
+import { PrdParser } from '../parsers/prd.parser';
+import { OpenApiParser } from '../parsers/openapi.parser';
+import { StoryParser } from '../parsers/story.parser';
+import { BaseTemplate } from '../templates/base.template';
+import { PlaywrightTemplate } from '../templates/playwright.template';
+import { ApiTemplate } from '../templates/api.template';
+import { GherkinTemplate } from '../templates/gherkin.template';
+import { MarkdownTemplate } from '../templates/markdown.template';
+import { BaseOutput } from '../outputs/base.output';
+import { PlaywrightOutput } from '../outputs/playwright.output';
+import { GherkinOutput } from '../outputs/gherkin.output';
+import { MarkdownOutput } from '../outputs/markdown.output';
+import { LLMProvider } from '../providers/base.provider';
+import { OpenAIProvider } from '../providers/openai.provider';
+import { AnthropicProvider } from '../providers/anthropic.provider';
+import { extractFirstCodeBlock } from '../utils/prompt';
+import { logger } from '../utils/logger';
+
+export class Generator {
+  private config: GenConfig;
+  private provider: LLMProvider;
+  private prdParser = new PrdParser();
+  private openApiParser = new OpenApiParser();
+  private storyParser = new StoryParser();
+
+  constructor(config: GenConfig) {
+    this.config = config;
+    this.provider = this.initProvider();
+  }
+
+  async generate(filePath: string, format?: OutputFormat): Promise<GeneratedOutput> {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return this.generateFromContent(content, format);
+  }
+
+  async generateFromContent(content: string, format?: OutputFormat): Promise<GeneratedOutput> {
+    const input = this.detectAndParse(content);
+    const outputFormat = format || this.config.output.format;
+    const template = this.getTemplate(outputFormat);
+    const output = this.getOutput(outputFormat);
+
+    logger.info(`Detected input type: ${input.type} (${input.scenarios.length} scenarios)`);
+    logger.info(`Generating ${outputFormat} tests...`);
+
+    const { systemPrompt, userPrompt } = template.buildPrompt(input, this.config);
+
+    const response = await this.provider.call(userPrompt, {
+      systemPrompt,
+      temperature: this.config.options.temperature,
+      maxTokens: this.config.options.maxTokens,
+    });
+
+    logger.info(`LLM response: ${response.tokens.output} tokens, ${response.latencyMs}ms`);
+
+    const generatedCode = extractFirstCodeBlock(response.text);
+    const slug = input.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .substring(0, 40);
+    const file = output.createFile(slug, generatedCode);
+
+    return {
+      format: outputFormat,
+      files: [file],
+      summary: {
+        totalTests: this.countTests(generatedCode, outputFormat),
+        totalScenarios: input.scenarios.length,
+        format: outputFormat,
+      },
+    };
+  }
+
+  detectAndParse(content: string): ParsedInput {
+    if (this.openApiParser.canParse(content)) {
+      return this.openApiParser.parse(content);
+    }
+    if (this.storyParser.canParse(content)) {
+      return this.storyParser.parse(content);
+    }
+    if (this.prdParser.canParse(content)) {
+      return this.prdParser.parse(content);
+    }
+
+    // Fallback to PRD parser
+    return this.prdParser.parse(content);
+  }
+
+  private getTemplate(format: OutputFormat): BaseTemplate {
+    switch (format) {
+      case 'playwright':
+        return new PlaywrightTemplate();
+      case 'api':
+        return new ApiTemplate();
+      case 'gherkin':
+        return new GherkinTemplate();
+      case 'markdown':
+        return new MarkdownTemplate();
+    }
+  }
+
+  private getOutput(format: OutputFormat): BaseOutput {
+    switch (format) {
+      case 'playwright':
+      case 'api':
+        return new PlaywrightOutput();
+      case 'gherkin':
+        return new GherkinOutput();
+      case 'markdown':
+        return new MarkdownOutput();
+    }
+  }
+
+  private initProvider(): LLMProvider {
+    const { type, apiKey, model, baseUrl } = this.config.provider;
+
+    switch (type) {
+      case 'anthropic':
+        return new AnthropicProvider({ apiKey: apiKey || '', baseUrl, defaultModel: model });
+      case 'openai':
+      default:
+        return new OpenAIProvider({ apiKey: apiKey || '', baseUrl, defaultModel: model });
+    }
+  }
+
+  private countTests(code: string, format: OutputFormat): number {
+    switch (format) {
+      case 'playwright':
+      case 'api': {
+        const matches = code.match(/\btest\s*\(/g) || code.match(/\bit\s*\(/g) || [];
+        return matches.length;
+      }
+      case 'gherkin': {
+        const matches = code.match(/\bScenario:/g) || [];
+        return matches.length;
+      }
+      case 'markdown': {
+        const matches = code.match(/\|.*\|/g) || [];
+        return Math.max(matches.length - 1, 0); // Subtract header row
+      }
+    }
+  }
+}

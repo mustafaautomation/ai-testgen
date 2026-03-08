@@ -9,6 +9,7 @@ import { Generator } from './core/generator';
 import { validateTypeScript, validateGherkin, validateMarkdown } from './core/validator';
 import { setLogLevel } from './utils/logger';
 import { OutputFormat } from './core/types';
+import { Progress } from './utils/progress';
 
 dotenv.config();
 
@@ -40,6 +41,9 @@ program
   .option('--style <type>', 'Test style: descriptive, concise, bdd', 'descriptive')
   .option('--no-negative', 'Skip negative test cases')
   .option('--no-boundary', 'Skip boundary test cases')
+  .option('--no-stream', 'Disable streaming output')
+  .option('--dry-run', 'Show parsed input and prompt without calling LLM')
+  .option('--model <model>', 'Override LLM model')
   .option('-v, --verbose', 'Enable verbose logging')
   .action(async (file: string, options) => {
     if (options.verbose) setLogLevel('debug');
@@ -51,11 +55,31 @@ program
     config.output.style = options.style;
     if (options.negative === false) config.options.includeNegative = false;
     if (options.boundary === false) config.options.includeBoundary = false;
+    if (options.model) config.provider.model = options.model;
+
+    const progress = new Progress();
+    progress.start('Parsing input...');
 
     const generator = new Generator(config);
-    const result = await generator.generate(file, options.format as OutputFormat, config.output.dir);
 
-    console.log(`\nGenerated ${result.summary.totalTests} tests in ${result.files.length} file(s)`);
+    if (options.dryRun) {
+      const content = fs.readFileSync(file, 'utf-8');
+      const input = generator.detectAndParse(content);
+      progress.done('Parsed');
+      console.log(`\nInput type: ${input.type}`);
+      console.log(`Title: ${input.title}`);
+      console.log(`Scenarios: ${input.scenarios.length}`);
+      console.log(`\nDry run — no LLM call made.`);
+      return;
+    }
+
+    const useStream = options.stream !== false && !!process.stderr.isTTY;
+    const result = await generator.generate(file, options.format as OutputFormat, config.output.dir, {
+      stream: useStream,
+      progress,
+    });
+
+    progress.done(`Generated ${result.summary.totalTests} tests in ${result.files.length} file(s)`);
     console.log(`Format: ${result.format}`);
     console.log(`Output: ${config.output.dir}`);
   });
@@ -67,6 +91,7 @@ program
   .option('-o, --output <dir>', 'Output directory', './generated-tests')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('--no-stream', 'Disable streaming output')
   .action(async (file: string, options) => {
     if (options.verbose) setLogLevel('debug');
 
@@ -74,10 +99,17 @@ program
     config.output.format = 'api';
     config.output.dir = options.output;
 
-    const generator = new Generator(config);
-    const result = await generator.generate(file, 'api', config.output.dir);
+    const progress = new Progress();
+    progress.start('Parsing OpenAPI spec...');
 
-    console.log(`\nGenerated ${result.summary.totalTests} API tests from spec`);
+    const generator = new Generator(config);
+    const useStream = options.stream !== false && !!process.stderr.isTTY;
+    const result = await generator.generate(file, 'api', config.output.dir, {
+      stream: useStream,
+      progress,
+    });
+
+    progress.done(`Generated ${result.summary.totalTests} API tests from spec`);
   });
 
 program
@@ -87,6 +119,7 @@ program
   .option('-o, --output <dir>', 'Output directory', './generated-tests')
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Enable verbose logging')
+  .option('--no-stream', 'Disable streaming output')
   .action(async (file: string, options) => {
     if (options.verbose) setLogLevel('debug');
 
@@ -94,10 +127,17 @@ program
     config.output.format = 'markdown';
     config.output.dir = options.output;
 
-    const generator = new Generator(config);
-    const result = await generator.generate(file, 'markdown', config.output.dir);
+    const progress = new Progress();
+    progress.start('Parsing input...');
 
-    console.log(`\nGenerated test plan with ${result.summary.totalScenarios} scenarios`);
+    const generator = new Generator(config);
+    const useStream = options.stream !== false && !!process.stderr.isTTY;
+    const result = await generator.generate(file, 'markdown', config.output.dir, {
+      stream: useStream,
+      progress,
+    });
+
+    progress.done(`Generated test plan with ${result.summary.totalScenarios} scenarios`);
   });
 
 program

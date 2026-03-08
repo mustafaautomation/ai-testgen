@@ -12,12 +12,13 @@ import { BaseOutput } from '../outputs/base.output';
 import { PlaywrightOutput } from '../outputs/playwright.output';
 import { GherkinOutput } from '../outputs/gherkin.output';
 import { MarkdownOutput } from '../outputs/markdown.output';
-import { LLMProvider } from '../providers/base.provider';
+import { LLMProvider, StreamOptions } from '../providers/base.provider';
 import { OpenAIProvider } from '../providers/openai.provider';
 import { AnthropicProvider } from '../providers/anthropic.provider';
 import { CustomProvider } from '../providers/custom.provider';
 import { extractFirstCodeBlock } from '../utils/prompt';
 import { logger } from '../utils/logger';
+import { Progress } from '../utils/progress';
 
 export class Generator {
   private config: GenConfig;
@@ -31,12 +32,22 @@ export class Generator {
     this.provider = this.initProvider();
   }
 
-  async generate(filePath: string, format?: OutputFormat, outputDir?: string): Promise<GeneratedOutput> {
+  async generate(
+    filePath: string,
+    format?: OutputFormat,
+    outputDir?: string,
+    options?: { stream?: boolean; progress?: Progress },
+  ): Promise<GeneratedOutput> {
     const content = fs.readFileSync(filePath, 'utf-8');
-    return this.generateFromContent(content, format, outputDir);
+    return this.generateFromContent(content, format, outputDir, options);
   }
 
-  async generateFromContent(content: string, format?: OutputFormat, outputDir?: string): Promise<GeneratedOutput> {
+  async generateFromContent(
+    content: string,
+    format?: OutputFormat,
+    outputDir?: string,
+    options?: { stream?: boolean; progress?: Progress },
+  ): Promise<GeneratedOutput> {
     const input = this.detectAndParse(content);
     const outputFormat = format || this.config.output.format;
     const template = this.getTemplate(outputFormat);
@@ -47,11 +58,29 @@ export class Generator {
 
     const { systemPrompt, userPrompt } = template.buildPrompt(input, this.config);
 
-    const response = await this.provider.call(userPrompt, {
-      systemPrompt,
-      temperature: this.config.options.temperature,
-      maxTokens: this.config.options.maxTokens,
-    });
+    const progress = options?.progress;
+    progress?.update(`Detected: ${input.type} (${input.scenarios.length} scenarios)`);
+    progress?.update(`Calling ${this.config.provider.type}...`);
+
+    let response;
+    if (options?.stream) {
+      progress?.stop(); // Stop spinner before streaming tokens
+      response = await this.provider.stream(userPrompt, {
+        systemPrompt,
+        temperature: this.config.options.temperature,
+        maxTokens: this.config.options.maxTokens,
+        onToken: (token) => progress?.stream(token),
+      });
+      process.stderr.write('\n'); // Newline after streamed output
+    } else {
+      response = await this.provider.call(userPrompt, {
+        systemPrompt,
+        temperature: this.config.options.temperature,
+        maxTokens: this.config.options.maxTokens,
+      });
+    }
+
+    progress?.start('Writing files...');
 
     logger.info(`LLM response: ${response.tokens.output} tokens, ${response.latencyMs}ms`);
 

@@ -22,7 +22,7 @@ export class AnthropicProvider extends BaseLLMProvider {
     super();
     this.apiKey = config.apiKey;
     this.baseUrl = config.baseUrl || 'https://api.anthropic.com/v1';
-    this.defaultModel = config.defaultModel || 'claude-sonnet-4-6';
+    this.defaultModel = config.defaultModel || 'claude-sonnet-4-5-20250514';
   }
 
   async call(prompt: string, options?: CallOptions): Promise<LLMResponse> {
@@ -49,7 +49,7 @@ export class AnthropicProvider extends BaseLLMProvider {
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
-          'anthropic-version': '2024-10-22',
+          'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify(body),
         signal: controller.signal,

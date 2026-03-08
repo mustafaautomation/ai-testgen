@@ -1,0 +1,137 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { AnthropicProvider } from '../../src/providers/anthropic.provider';
+import { OpenAIProvider } from '../../src/providers/openai.provider';
+
+describe('AnthropicProvider', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should send the correct anthropic-version header (2023-06-01)', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: 'response' }],
+        model: 'claude-sonnet-4-5-20250514',
+        usage: { input_tokens: 10, output_tokens: 20 },
+      }),
+    });
+
+    const provider = new AnthropicProvider({ apiKey: 'test-key' });
+    await provider.call('hello');
+
+    const callArgs = mockFetch.mock.calls[0];
+    const headers = callArgs[1].headers;
+    expect(headers['anthropic-version']).toBe('2023-06-01');
+  });
+
+  it('should use the correct default model (claude-sonnet-4-5-20250514)', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: 'response' }],
+        model: 'claude-sonnet-4-5-20250514',
+        usage: { input_tokens: 10, output_tokens: 20 },
+      }),
+    });
+
+    const provider = new AnthropicProvider({ apiKey: 'test-key' });
+    await provider.call('hello');
+
+    const callArgs = mockFetch.mock.calls[0];
+    const body = JSON.parse(callArgs[1].body);
+    expect(body.model).toBe('claude-sonnet-4-5-20250514');
+  });
+
+  it('should return correct response on success', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: 'generated tests' }],
+        model: 'claude-sonnet-4-5-20250514',
+        usage: { input_tokens: 100, output_tokens: 200 },
+      }),
+    });
+
+    const provider = new AnthropicProvider({ apiKey: 'test-key' });
+    const result = await provider.call('generate tests');
+
+    expect(result.text).toBe('generated tests');
+    expect(result.model).toBe('claude-sonnet-4-5-20250514');
+    expect(result.tokens).toEqual({ input: 100, output: 200 });
+    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should send the x-api-key header', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        content: [{ type: 'text', text: 'response' }],
+        model: 'claude-sonnet-4-5-20250514',
+        usage: { input_tokens: 10, output_tokens: 20 },
+      }),
+    });
+
+    const provider = new AnthropicProvider({ apiKey: 'my-secret-key' });
+    await provider.call('hello');
+
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['x-api-key']).toBe('my-secret-key');
+  });
+});
+
+describe('OpenAIProvider', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should return correct response on success', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'openai response' } }],
+        model: 'gpt-4o-mini',
+        usage: { prompt_tokens: 50, completion_tokens: 150 },
+      }),
+    });
+
+    const provider = new OpenAIProvider({ apiKey: 'test-key' });
+    const result = await provider.call('generate tests');
+
+    expect(result.text).toBe('openai response');
+    expect(result.model).toBe('gpt-4o-mini');
+    expect(result.tokens).toEqual({ input: 50, output: 150 });
+    expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should send Authorization bearer header', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: 'response' } }],
+        model: 'gpt-4o-mini',
+        usage: { prompt_tokens: 10, completion_tokens: 20 },
+      }),
+    });
+
+    const provider = new OpenAIProvider({ apiKey: 'my-openai-key' });
+    await provider.call('hello');
+
+    const headers = mockFetch.mock.calls[0][1].headers;
+    expect(headers['Authorization']).toBe('Bearer my-openai-key');
+  });
+});

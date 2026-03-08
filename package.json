@@ -16,6 +16,7 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
+    "test:integration": "vitest run tests/integration/",
     "test:watch": "vitest",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",

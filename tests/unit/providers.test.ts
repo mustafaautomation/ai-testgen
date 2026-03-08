@@ -169,12 +169,12 @@ describe('AnthropicProvider - clearTimeout on error', () => {
 
     mockFetch.mockResolvedValueOnce({
       ok: false,
-      status: 500,
-      text: async () => 'Internal server error',
+      status: 400,
+      text: async () => 'Bad request',
     });
 
     const provider = new AnthropicProvider({ apiKey: 'test-key' });
-    await expect(provider.call('hello')).rejects.toThrow('Anthropic API error (500)');
+    await expect(provider.call('hello')).rejects.toThrow('Anthropic API error (400)');
     expect(clearTimeoutSpy).toHaveBeenCalled();
     clearTimeoutSpy.mockRestore();
   });
@@ -209,5 +209,62 @@ describe('CustomProvider - clearTimeout on error', () => {
     await expect(provider.call('hello')).rejects.toThrow('Custom API error (422)');
     expect(clearTimeoutSpy).toHaveBeenCalled();
     clearTimeoutSpy.mockRestore();
+  });
+});
+
+describe('OpenAI API key validation', () => {
+  it('should throw on missing API key', async () => {
+    const provider = new OpenAIProvider({ apiKey: '' });
+    await expect(provider.call('hello')).rejects.toThrow(/API key/i);
+  });
+
+  it('should throw on $-prefixed API key', async () => {
+    const provider = new OpenAIProvider({ apiKey: '$OPENAI_API_KEY' });
+    await expect(provider.call('hello')).rejects.toThrow(/API key/i);
+  });
+});
+
+describe('OpenAI retry behavior', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should retry on 429 and succeed', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'Rate limited' })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: 'response' } }],
+          model: 'gpt-4o-mini',
+          usage: { prompt_tokens: 10, completion_tokens: 20 },
+        }),
+      });
+
+    const provider = new OpenAIProvider({ apiKey: 'test-key' });
+    const result = await provider.call('hello');
+    expect(result.text).toBe('response');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  }, 15000);
+
+  it('should NOT retry on 401', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'Unauthorized' });
+    const provider = new OpenAIProvider({ apiKey: 'bad-key' });
+    await expect(provider.call('hello')).rejects.toThrow('401');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Anthropic API key validation', () => {
+  it('should throw on missing Anthropic API key', async () => {
+    const provider = new AnthropicProvider({ apiKey: '' });
+    await expect(provider.call('hello')).rejects.toThrow(/API key/i);
   });
 });

@@ -1,4 +1,5 @@
 import { BaseLLMProvider, CallOptions, LLMResponse } from './base.provider';
+import { withRetry, RetryableError } from '../utils/retry';
 
 interface OpenAIConfig {
   apiKey: string;
@@ -26,6 +27,7 @@ export class OpenAIProvider extends BaseLLMProvider {
   }
 
   async call(prompt: string, options?: CallOptions): Promise<LLMResponse> {
+    this.validateApiKey(this.apiKey);
     const model = options?.model || this.defaultModel;
     const timeout = options?.timeout || 60000;
 
@@ -39,37 +41,39 @@ export class OpenAIProvider extends BaseLLMProvider {
       max_tokens: options?.maxTokens ?? 4096,
     };
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    return withRetry(async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
 
-    const { result, latencyMs } = await this.timedCall(async () => {
-      try {
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
+      const { result, latencyMs } = await this.timedCall(async () => {
+        try {
+          const response = await fetch(`${this.baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          });
 
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`OpenAI API error (${response.status}): ${error}`);
+          if (!response.ok) {
+            const error = await response.text();
+            throw new RetryableError(`OpenAI API error (${response.status}): ${error}`, response.status);
+          }
+          return response.json() as Promise<OpenAIResponse>;
+        } finally {
+          clearTimeout(timer);
         }
-        return response.json() as Promise<OpenAIResponse>;
-      } finally {
-        clearTimeout(timer);
-      }
-    });
+      });
 
-    return {
-      text: result.choices?.[0]?.message?.content || '',
-      model: result.model || model,
-      tokens: {
-        input: result.usage?.prompt_tokens || 0,
-        output: result.usage?.completion_tokens || 0,
-      },
-      latencyMs,
-      raw: result,
-    };
+      return {
+        text: result.choices?.[0]?.message?.content || '',
+        model: result.model || model,
+        tokens: {
+          input: result.usage?.prompt_tokens || 0,
+          output: result.usage?.completion_tokens || 0,
+        },
+        latencyMs,
+        raw: result,
+      };
+    }, { maxRetries: 3, baseDelayMs: 1000 });
   }
 }

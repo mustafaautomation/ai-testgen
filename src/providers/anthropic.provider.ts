@@ -1,4 +1,5 @@
 import { BaseLLMProvider, CallOptions, LLMResponse } from './base.provider';
+import { withRetry, RetryableError } from '../utils/retry';
 
 interface AnthropicConfig {
   apiKey: string;
@@ -26,6 +27,7 @@ export class AnthropicProvider extends BaseLLMProvider {
   }
 
   async call(prompt: string, options?: CallOptions): Promise<LLMResponse> {
+    this.validateApiKey(this.apiKey);
     const model = options?.model || this.defaultModel;
     const timeout = options?.timeout || 60000;
 
@@ -40,40 +42,42 @@ export class AnthropicProvider extends BaseLLMProvider {
       body.system = options.systemPrompt;
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    return withRetry(async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
 
-    const { result, latencyMs } = await this.timedCall(async () => {
-      try {
-        const response = await fetch(`${this.baseUrl}/messages`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': this.apiKey,
-            'anthropic-version': '2023-06-01',
-          },
-          body: JSON.stringify(body),
-          signal: controller.signal,
-        });
+      const { result, latencyMs } = await this.timedCall(async () => {
+        try {
+          const response = await fetch(`${this.baseUrl}/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': this.apiKey,
+              'anthropic-version': '2023-06-01',
+            },
+            body: JSON.stringify(body),
+            signal: controller.signal,
+          });
 
-        if (!response.ok) {
-          const error = await response.text();
-          throw new Error(`Anthropic API error (${response.status}): ${error}`);
+          if (!response.ok) {
+            const error = await response.text();
+            throw new RetryableError(`Anthropic API error (${response.status}): ${error}`, response.status);
+          }
+          return response.json() as Promise<AnthropicResponse>;
+        } finally {
+          clearTimeout(timer);
         }
-        return response.json() as Promise<AnthropicResponse>;
-      } finally {
-        clearTimeout(timer);
-      }
-    });
+      });
 
-    const textContent = result.content?.find((c) => c.type === 'text');
+      const textContent = result.content?.find((c) => c.type === 'text');
 
-    return {
-      text: textContent?.text || '',
-      model: result.model || model,
-      tokens: { input: result.usage?.input_tokens || 0, output: result.usage?.output_tokens || 0 },
-      latencyMs,
-      raw: result,
-    };
+      return {
+        text: textContent?.text || '',
+        model: result.model || model,
+        tokens: { input: result.usage?.input_tokens || 0, output: result.usage?.output_tokens || 0 },
+        latencyMs,
+        raw: result,
+      };
+    }, { maxRetries: 3, baseDelayMs: 1000 });
   }
 }

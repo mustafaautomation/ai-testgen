@@ -22,9 +22,9 @@ function log(level: LogLevel, message: string, data?: Record<string, unknown>): 
   if (LOG_LEVELS[level] < LOG_LEVELS[currentLevel]) return;
   const prefix = `${COLORS[level]}[${new Date().toISOString()}] [${level.toUpperCase()}]${RESET}`;
   if (data) {
-    console.log(`${prefix} ${message}`, JSON.stringify(data, null, 2));
+    console.error(`${prefix} ${message}`, JSON.stringify(data, null, 2));
   } else {
-    console.log(`${prefix} ${message}`);
+    console.error(`${prefix} ${message}`);
   }
 }
 

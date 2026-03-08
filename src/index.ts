@@ -49,4 +49,5 @@ export { logger, setLogLevel, getLogLevel } from './utils/logger';
 export { extractCodeBlocks, extractFirstCodeBlock } from './utils/prompt';
 export { Progress } from './utils/progress';
 export { Cache } from './utils/cache';
+export { withRetry, RetryableError } from './utils/retry';
 export { StreamOptions } from './providers/base.provider';

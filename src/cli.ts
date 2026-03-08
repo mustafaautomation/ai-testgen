@@ -214,6 +214,16 @@ function detectFormat(filePath: string): string {
   return 'playwright';
 }
 
+program.addHelpText('after', `
+Examples:
+  $ ai-testgen generate requirements.md --format playwright
+  $ ai-testgen generate api-spec.yaml --format api --model gpt-4o
+  $ ai-testgen generate stories.txt --format gherkin --style bdd
+  $ ai-testgen generate spec.yaml --dry-run
+  $ ai-testgen validate generated-tests/login.spec.ts
+  $ ai-testgen init
+`);
+
 program.parseAsync().catch((err: Error) => {
   if (err.message.includes('API key')) {
     console.error(`\nConfiguration error: ${err.message}`);

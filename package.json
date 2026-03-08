@@ -46,7 +46,7 @@
     "url": "https://github.com/mustafaautomation/ai-testgen/issues"
   },
   "dependencies": {
-    "commander": "^12.1.0",
+    "commander": "^14.0.3",
     "dotenv": "^16.4.7",
     "yaml": "^2.6.1"
   },

@@ -38,18 +38,21 @@ export class CustomProvider extends BaseLLMProvider {
     const timer = setTimeout(() => controller.abort(), timeout);
 
     const { result, latencyMs } = await this.timedCall(async () => {
-      const response = await fetch(this.endpoint, {
-        method: 'POST',
-        headers: this.headers,
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Custom API error (${response.status}): ${error}`);
+      try {
+        const response = await fetch(this.endpoint, {
+          method: 'POST',
+          headers: this.headers,
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Custom API error (${response.status}): ${error}`);
+        }
+        return response.json();
+      } finally {
+        clearTimeout(timer);
       }
-      return response.json();
     });
 
     const parsed = this.parseResponse(result);

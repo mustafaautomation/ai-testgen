@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AnthropicProvider } from '../../src/providers/anthropic.provider';
 import { OpenAIProvider } from '../../src/providers/openai.provider';
+import { CustomProvider } from '../../src/providers/custom.provider';
 
 describe('AnthropicProvider', () => {
   let mockFetch: ReturnType<typeof vi.fn>;
@@ -133,5 +134,80 @@ describe('OpenAIProvider', () => {
 
     const headers = mockFetch.mock.calls[0][1].headers;
     expect(headers['Authorization']).toBe('Bearer my-openai-key');
+  });
+
+  it('should clear timeout even when API returns error', async () => {
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: async () => 'Bad request',
+    });
+
+    const provider = new OpenAIProvider({ apiKey: 'test-key' });
+    await expect(provider.call('hello')).rejects.toThrow('OpenAI API error (400)');
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    clearTimeoutSpy.mockRestore();
+  });
+});
+
+describe('AnthropicProvider - clearTimeout on error', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should clear timeout even when API returns error', async () => {
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      text: async () => 'Internal server error',
+    });
+
+    const provider = new AnthropicProvider({ apiKey: 'test-key' });
+    await expect(provider.call('hello')).rejects.toThrow('Anthropic API error (500)');
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    clearTimeoutSpy.mockRestore();
+  });
+});
+
+describe('CustomProvider - clearTimeout on error', () => {
+  let mockFetch: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockFetch = vi.fn();
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should clear timeout even when API returns error', async () => {
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      text: async () => 'Unprocessable entity',
+    });
+
+    const provider = new CustomProvider({
+      endpoint: 'https://example.com/api',
+      bodyTemplate: (prompt) => ({ prompt }),
+      parseResponse: (data: any) => ({ text: data.text }),
+    });
+    await expect(provider.call('hello')).rejects.toThrow('Custom API error (422)');
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    clearTimeoutSpy.mockRestore();
   });
 });

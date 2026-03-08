@@ -43,19 +43,22 @@ export class OpenAIProvider extends BaseLLMProvider {
     const timer = setTimeout(() => controller.abort(), timeout);
 
     const { result, latencyMs } = await this.timedCall(async () => {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+      try {
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
 
-      clearTimeout(timer);
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`OpenAI API error (${response.status}): ${error}`);
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`OpenAI API error (${response.status}): ${error}`);
+        }
+        return response.json() as Promise<OpenAIResponse>;
+      } finally {
+        clearTimeout(timer);
       }
-      return response.json() as Promise<OpenAIResponse>;
     });
 
     return {

@@ -44,23 +44,26 @@ export class AnthropicProvider extends BaseLLMProvider {
     const timer = setTimeout(() => controller.abort(), timeout);
 
     const { result, latencyMs } = await this.timedCall(async () => {
-      const response = await fetch(`${this.baseUrl}/messages`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
+      try {
+        const response = await fetch(`${this.baseUrl}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
 
-      clearTimeout(timer);
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Anthropic API error (${response.status}): ${error}`);
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Anthropic API error (${response.status}): ${error}`);
+        }
+        return response.json() as Promise<AnthropicResponse>;
+      } finally {
+        clearTimeout(timer);
       }
-      return response.json() as Promise<AnthropicResponse>;
     });
 
     const textContent = result.content?.find((c) => c.type === 'text');

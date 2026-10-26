@@ -32,7 +32,7 @@ AI-powered test case generator that transforms PRDs, OpenAPI specs, and user sto
 
 ## Why?
 
-42% of testers struggle to write automation scripts. AI TestGen bridges the gap by generating structured, runnable test cases from natural-language requirements — no prompt engineering required.
+Writing test cases from requirements is slow and repetitive. AI TestGen generates structured test cases and test code from natural-language requirements, so you review and refine a draft instead of starting from scratch.
 
 - **3 input formats**: PRD/Markdown, OpenAPI (YAML/JSON), User Stories (As a.../Given/When/Then)
 - **4 output formats**: Playwright tests, API tests, Gherkin features, Markdown test plans
@@ -47,34 +47,38 @@ AI-powered test case generator that transforms PRDs, OpenAPI specs, and user sto
 ```
 $ npm test
 
- Test Files  13 passed (13)
-      Tests  94 passed (94)
-   Duration  1.44s
+ Test Files  14 passed (14)
+      Tests  109 passed (109)
 ```
 
-> **94 unit tests** covering parsers, templates, validation, config, generator, CLI, providers, retry logic, streaming, and caching.
+> **109 unit tests** (plus 2 opt-in OpenAI integration tests, `npm run test:integration`) covering parsers, templates, validation, config, generator, CLI, providers, retry logic, streaming, and caching.
 
 ---
 
 ## Quick Start
 
+Not published to npm; install from source:
+
 ```bash
-npm install ai-testgen
+git clone https://github.com/mustafaautomation/ai-testgen.git
+cd ai-testgen
+npm ci && npm run build
+npm link    # puts the `ai-testgen` command on your PATH (or run: node dist/cli.js)
 
 # Copy and fill in your API keys
 cp .env.example .env
 
 # Initialize config
-npx ai-testgen init
+ai-testgen init
 
 # Generate Playwright tests from a PRD
-npx ai-testgen generate requirements.md --format playwright
+ai-testgen generate requirements.md --format playwright
 
 # Generate API tests from OpenAPI spec
-npx ai-testgen from-spec api-spec.yaml
+ai-testgen from-spec api-spec.yaml
 
 # Generate Gherkin features from user stories
-npx ai-testgen generate stories.txt --format gherkin
+ai-testgen generate stories.txt --format gherkin
 ```
 
 ---
@@ -108,7 +112,7 @@ npx ai-testgen generate stories.txt --format gherkin
 Generate test cases from any supported input file.
 
 ```bash
-npx ai-testgen generate <file> [options]
+ai-testgen generate <file> [options]
 
 Options:
   -f, --format <type>   playwright, api, gherkin, markdown (default: playwright)
@@ -142,7 +146,7 @@ Validate generated test files (TypeScript compilation, Gherkin syntax, Markdown 
 Create default configuration file.
 
 ```bash
-npx ai-testgen init [options]
+ai-testgen init [options]
 
 Options:
   --force               Overwrite existing config
@@ -265,8 +269,8 @@ console.log(`Generated ${result.summary.totalTests} tests`);
 
 The included GitHub Actions workflow:
 
-1. Runs lint, format, type check on Node 18 & 20
-2. Executes all 94 unit tests
+1. Runs lint, format and type check on Node 20
+2. Executes all 109 unit tests
 3. Builds the package to verify publishability
 
 Add your API keys as repository secrets for generation:
@@ -315,7 +319,8 @@ ai-testgen/
 │   │   └── logger.ts             # Colored structured logging
 │   ├── cli.ts                    # Command-line interface
 │   └── index.ts                  # Public API exports
-├── tests/unit/                   # 94 unit tests
+├── tests/unit/                   # 109 unit tests
+├── tests/integration/            # 2 OpenAI tests (need an API key)
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 ├── Dockerfile

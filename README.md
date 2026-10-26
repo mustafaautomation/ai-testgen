@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/mustafaautomation/ai-testgen/actions/workflows/ci.yml/badge.svg)](https://github.com/mustafaautomation/ai-testgen/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/Node.js-22+-339933.svg?logo=node.js&logoColor=white)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)](Dockerfile)
 
@@ -269,7 +269,7 @@ console.log(`Generated ${result.summary.totalTests} tests`);
 
 The included GitHub Actions workflow:
 
-1. Runs lint, format and type check on Node 20
+1. Runs lint, format and type check on Node 24
 2. Executes all 109 unit tests
 3. Builds the package to verify publishability
 
@@ -284,7 +284,7 @@ Add your API keys as repository secrets for generation:
 ```
 ai-testgen/
 ├── .github/
-│   ├── workflows/ci.yml          # CI pipeline (Node 18/20 matrix)
+│   ├── workflows/ci.yml          # CI pipeline (Node 24)
 │   ├── dependabot.yml            # Automated dependency updates
 │   ├── CODEOWNERS                # Review ownership
 │   └── pull_request_template.md  # PR checklist
